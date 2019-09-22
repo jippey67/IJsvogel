@@ -18,7 +18,7 @@ def process_message(msg):
     calc = bitcoin/usdt
     minPrice = min(minPrice, calc)
     maxPrice = max(maxPrice, calc)
-    print('1 USDT is', '{:10.8f}'.format(calc), 'max is', '{:6.4f}'.format((maxPrice-1)*100),'% min is', '{:6.4f}'.format((minPrice-1)*100), '%')
+    print('1 USDT is', '{:10.8f}'.format(calc), 'USD. max is', '{:6.4f}'.format((maxPrice-1)*100),'% min is', '{:6.4f}'.format((minPrice-1)*100), '% spread is','{:6.4f}'.format((maxPrice-minPrice)*100), '%')
 
 client = Client(keys.api_key, keys.api_secret, {"verify": False, "timeout": 20})
 
