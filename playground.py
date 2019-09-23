@@ -28,7 +28,7 @@ print(tickers)
 
 precision = 8
 price = 0.021102
-price_str = '{:0.0{}f}'.format(price, precision)
+price_string = '{:0.0{}f}'.format(price, precision)
 
 order = client.create_test_order(
     symbol='ETHBTC',
@@ -36,7 +36,7 @@ order = client.create_test_order(
     type=ORDER_TYPE_LIMIT,
     timeInForce=TIME_IN_FORCE_GTC,
     quantity=100,
-    price=price_str)
+    price=price_string)
 
 print(order)
 
