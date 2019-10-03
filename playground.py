@@ -1,7 +1,7 @@
 from binance.websockets import BinanceSocketManager
 from binance.client import Client
 from binance.enums import *
-import keys
+import specifications
 import ssl
 import urllib.request
 import json
@@ -19,9 +19,9 @@ def process_message(msg):
     calc = bitcoin/usdt
     minPrice = min(minPrice, calc)
     maxPrice = max(maxPrice, calc)
-    print('1 USDT is', '{:10.8f}'.format(calc), 'USD. max is', '{:6.4f}'.format((maxPrice-1)*100),'% min is', '{:6.4f}'.format((minPrice-1)*100), '% spread is','{:6.4f}'.format((maxPrice-minPrice)*100), '%')
+    print('1 USDT is', '{:10.8f}'.format(calc), 'USD. BTCUSDT is', '{:6.4f}'.format(usdt))
 
-client = Client(keys.api_key, keys.api_secret, {"verify": False, "timeout": 20})
+client = Client(specifications.api_key, specifications.api_secret, {"verify": False, "timeout": 20})
 
 tickers = client.get_orderbook_tickers()
 print(tickers)
