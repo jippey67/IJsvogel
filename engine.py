@@ -1,5 +1,6 @@
 from binance.websockets import BinanceSocketManager
 from binance.client import Client
+from bitfinex import WssClient, ClientV2, ClientV1
 
 import ssl
 import urllib.request
@@ -29,7 +30,7 @@ quoteLog = 'quotes'+dt_string+'.csv'
 
 if test:
     triggerHi = 1 + 0.001
-    triggerLo = 1 - 0.001 
+    triggerLo = 1 - 0.001
     orderSpace = specifications['orderSpace']
 if production:
     triggerHi = 1 + specifications['targetTrigger']
@@ -38,11 +39,13 @@ if production:
 
 class Robot:
     def __init__(self):
-        self.client = Client(specifications['api_key_p'], specifications['api_secret_p'], {"verify": False, "timeout": 20})
-        self.bm = BinanceSocketManager(self.client)
-        self.bm.start_trade_socket('BTCUSDT', self.market_event)
-        self.bm.start_user_socket(self.user_event)
-        self.bm.start()
+        self.bitcoin = None
+        self.orderStatus = ''
+        self.orderId = ''
+        self.noOrderInProgress = True  # prevent multiple orders due to exchange latency
+        self.nextPosition = ''
+
+        self.startSockets()
 
         BTCbalance = float(self.client.get_asset_balance(asset='BTC')['free'])
         USDTbalance = float(self.client.get_asset_balance(asset='USDT')['free'])
@@ -55,23 +58,20 @@ class Robot:
             self.position = 'TETHER'
         print(self.position)
 
-        self.bitcoin = 8000  # initial value in case first trial results in error
 
-        self.orderStatus = ''
-        self.orderId = ''
-        self.noOrderInProgress = True  # prevent multiple orders due to exchange latency
-        self.nextPosition = ''
 
-    def getBTCquote(self, oldQuote):
-        context = ssl._create_unverified_context()
-        url = 'https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD&api_key=' + specifications['api_key_btc']
-        try:
-            btcusd = json.loads(urllib.request.urlopen(url, context=context).read()).get("USD")
-            return btcusd
-        except Exception as e:
-            if debug:
-                print('No btcusd quote obtained', e)
-            return oldQuote
+
+
+    def startSockets(self):
+        self.client = Client(specifications['api_key_p'], specifications['api_secret_p'], {"verify": False, "timeout": 20})
+        self.bm = BinanceSocketManager(self.client)
+        self.bm.start_trade_socket('BTCUSDT', self.market_event)
+        self.bm.start_user_socket(self.user_event)
+        self.bm.start()
+
+        self.bitfinex_client = WssClient()
+        self.bitfinex_client.subscribe_to_ticker(symbol="BTCUSD", callback=self.bitfinex_event)
+        self.bitfinex_client.start()
 
     def order(self, orderDetails):
         type = orderDetails[0]
@@ -92,6 +92,11 @@ class Robot:
             self.orderStatus = order['status']
             self.logOrders('sell initiated, order:' + self.orderId)
 
+    def bitfinex_event(self, msg):
+        if isinstance(msg, list):
+            if isinstance(msg[1][0], int) or isinstance(msg[1][0], float):
+                self.bitcoin = float(msg[1][0])
+
     def user_event(self, msg):
         if msg['e'] == 'executionReport':
             if msg['x'] == 'TRADE':
@@ -108,9 +113,8 @@ class Robot:
 
     def market_event(self, msg):
         usdt = float(msg.get('p'))
-        self.bitcoin = self.getBTCquote(self.bitcoin)
-        rate = self.bitcoin / usdt
-        if self.noOrderInProgress:
+        if self.noOrderInProgress and (self.bitcoin is not None):
+            rate = self.bitcoin / usdt
             if self.position == 'FLAT':
                 if rate > triggerHi:
                     limitPrice = self.bitcoin*(1+orderSpace)
@@ -145,9 +149,8 @@ class Robot:
                     self.nextPosition = 'FLAT'
                     buySell = 'buy'
                     if production: self.order([buySell, quantity, limitPrice])
-                    if test: self.testOrder(rate, buySell, usdt, self.bitcoin, limitPrice, quantity, self.nextPosition)
-        if debug: print('1 USDT is', '{:10.8f}'.format(rate), self.position)
-        if test: self.logQuotes(rate)
+            if test: print('tether:', usdt, 'bitcoin:', self.bitcoin, '1 USDT is', '{:10.8f}'.format(rate), 'USD. market position:', self.position)
+            if test: self.logQuotes(rate)
 
     def logOrders(self, payload):
         with open("ordersLog.txt","a+") as file:
