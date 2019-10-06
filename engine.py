@@ -2,9 +2,6 @@ from binance.websockets import BinanceSocketManager
 from binance.client import Client
 from bitfinex import WssClient, ClientV2, ClientV1
 
-import ssl
-import urllib.request
-import json
 import datetime
 import urllib3
 
@@ -149,8 +146,9 @@ class Robot:
                     self.nextPosition = 'FLAT'
                     buySell = 'buy'
                     if production: self.order([buySell, quantity, limitPrice])
+                    if test: self.testOrder(rate, buySell, usdt, self.bitcoin, limitPrice, quantity, self.nextPosition)
             if test: print('tether:', usdt, 'bitcoin:', self.bitcoin, '1 USDT is', '{:10.8f}'.format(rate), 'USD. market position:', self.position)
-            if test: self.logQuotes(rate)
+            if test: self.logQuotes(str(rate)+','+str(usdt)+','+str(self.bitcoin))
 
     def logOrders(self, payload):
         with open("ordersLog.txt","a+") as file:
@@ -158,7 +156,7 @@ class Robot:
 
     def logQuotes(self, payload):
         with open(quoteLog, 'a') as file:
-            file.write(str(datetime.datetime.utcnow())+","+str(payload)+"\n")
+            file.write(str(datetime.datetime.utcnow())+","+payload+"\n")
 
 bot = Robot()
 
